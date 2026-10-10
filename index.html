@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mes Chaînes</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{
+  --bg:#0f0f10;--panel:#18181b;--panel2:#212126;--line:#2e2e35;--text:#f1f1f3;--muted:#9a9aa5;
+  --accent:#3ea6ff;--good:#3ddc84;--bad:#ff5c6c;--warn:#ffb648;--pink:#e05ba0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px}
+h1{font-size:22px;margin:0}
+h2{font-size:16px;margin:0 0 10px}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;font:inherit;font-weight:600}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:#06121d;border-color:var(--accent)}
+.btn.warn{border-color:var(--warn);color:var(--warn)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.chan{display:flex;gap:12px;align-items:center;background:var(--panel2);border-radius:12px;padding:12px}
+.chan img{width:48px;height:48px;border-radius:50%}
+.chan .big{font-size:20px;font-weight:700}
+.stats{display:flex;gap:16px;flex-wrap:wrap}
+.stats div span{display:block;font-size:11px;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.vid{cursor:pointer}
+tr.vid:hover{background:var(--panel2)}
+tr.vid.sel{background:#1d2a38}
+.thumb{width:54px;height:30px;object-fit:cover;border-radius:4px;display:block}
+.title{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.up{color:var(--good);font-weight:700}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--muted)}
+.tag.live{color:var(--good)}
+.tag.j2{color:var(--warn)}
+input[type=text],textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit}
+textarea{min-height:150px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+code{background:var(--panel2);padding:2px 6px;border-radius:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--panel2);border-radius:10px;padding:10px}
+.kpi b{display:block;font-size:20px}
+.kpi span{font-size:11px;color:var(--muted)}
+svg{width:100%;height:auto;display:block}
+.seg{display:grid;grid-template-columns:28px 52px 1fr 90px;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);align-items:start}
+.seg .n{width:22px;height:22px;border-radius:50%;background:var(--panel2);text-align:center;font-size:11px;line-height:22px}
+.seg.worst{background:rgba(255,92,108,.08)}
+.seg.worst .n{background:var(--bad);color:#000}
+.drop{text-align:right;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;display:none;z-index:9}
+.hidden{display:none}
+@media(max-width:600px){.seg{grid-template-columns:24px 44px 1fr 60px}.title{max-width:180px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Mes Chaînes</h1>
+      <div class="muted small" id="status">Pas encore connecté</div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="btnAdd">+ Ajouter une chaîne</button>
+      <button class="btn" id="btnRefresh">↻ Actualiser</button>
+      <button class="btn" id="btnSettings">⚙</button>
+    </div>
+  </header>
+
+  <!-- Réglages -->
+  <section class="panel hidden" id="setup">
+    <h2>Réglages</h2>
+    <p class="muted small">1. Dans Google Cloud, crée un identifiant client OAuth de type « Application Web ».<br>
+    2. Dans « Origines JavaScript autorisées », ajoute exactement : <code id="origin"></code><br>
+    3. Colle l'ID client ci-dessous.</p>
+    <div class="row">
+      <input type="text" id="clientId" placeholder="xxxxxxxx.apps.googleusercontent.com" style="flex:1;min-width:240px">
+      <button class="btn primary" id="btnSaveClient">Enregistrer</button>
+    </div>
+  </section>
+
+  <!-- Chaînes -->
+  <section class="panel">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h2 style="margin:0">Chaînes <span class="tag live">● live</span></h2>
+      <span class="muted small" id="nextRefresh"></span>
+    </div>
+    <div class="grid" id="channels"><div class="muted">Ajoute une chaîne pour commencer.</div></div>
+  </section>
+
+  <!-- Vidéos -->
+  <section class="panel">
+    <h2>Vidéos <span class="tag live">● live</span> <span class="tag j2">analyse à J-2</span></h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th></th><th>Vidéo</th><th>Publiée</th>
+          <th class="num">Vues</th><th class="num">Depuis la dernière actu</th><th class="num">Vues / h</th>
+          <th class="num">J'aime</th><th class="num">Comm.</th>
+          <th class="num">Ont continué*</th><th class="num">Durée moy.*</th>
+        </tr></thead>
+        <tbody id="videos"><tr><td colspan="10" class="muted">—</td></tr></tbody>
+      </table>
+    </div>
+    <p class="muted small">* données YouTube Analytics, avec 1 à 2 jours de délai. Clique sur une vidéo pour l'analyse détaillée.</p>
+  </section>
+
+  <!-- Détail -->
+  <section class="panel hidden" id="detail"></section>
+
+  <!-- Accroches -->
+  <section class="panel">
+    <h2>Comparatif des accroches <span class="tag j2">J-2</span></h2>
+    <p class="muted small">La première phrase de chaque script, face au % de gens qui ont continué à regarder.</p>
+    <div class="tablewrap"><table><thead><tr><th>Vidéo</th><th>Accroche</th><th class="num">Ont continué</th><th class="num">% vu moy.</th></tr></thead><tbody id="hooks"></tbody></table></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SCOPES='https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly';
+const REFRESH_MS=3*60*1000;
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const S={
+  clientId:LS.get('ytd_client',''),
+  accounts:LS.get('ytd_accounts',[]),
+  videos:{},analytics:{},engaged:{},ret:{},
+  snaps:LS.get('ytd_snaps',{}),
+  scripts:LS.get('ytd_scripts',{}),
+  selected:null,lastRefresh:null,nextAt:null
+};
+const $=id=>document.getElementById(id);
+const fmt=n=>(n==null||isNaN(n))?'—':Math.round(n).toLocaleString('fr-FR');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const mmss=s=>{s=Math.round(s||0);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500)}
+function ago(iso){const h=(Date.now()-new Date(iso))/3.6e6;if(h<1)return Math.round(h*60)+' min';if(h<48)return Math.round(h)+' h';return Math.round(h/24)+' j'}
+function isoDur(d){const m=d.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)||[];return (+m[1]||0)*3600+(+m[2]||0)*60+(+m[3]||0)}
+const valid=a=>a&&a.token&&a.exp>Date.now();
+function saveAccounts(){LS.set('ytd_accounts',S.accounts)}
+
+/* ---------- Google OAuth ---------- */
+let tokenClient=null;
+function initGis(){
+  if(!S.clientId||!window.google?.accounts?.oauth2)return false;
+  tokenClient=google.accounts.oauth2.initTokenClient({client_id:S.clientId,scope:SCOPES,callback:onToken,error_callback:()=>toast('Connexion annulée')});
+  return true;
+}
+function connect(){
+  if(!S.clientId){$('setup').classList.remove('hidden');toast('Colle d\'abord ton ID client');return}
+  if(!tokenClient&&!initGis()){toast('Google charge encore, réessaie dans 2 s');return}
+  tokenClient.requestAccessToken({prompt:'select_account'});
+}
+async function onToken(r){
+  if(r.error){toast('Erreur : '+r.error);return}
+  const token=r.access_token,exp=Date.now()+((+r.expires_in||3600)-60)*1000;
+  try{
+    const d=await api('https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&mine=true',token);
+    if(!d.items?.length){toast('Aucune chaîne sur ce compte');return}
+    for(const ch of d.items){
+      let a=S.accounts.find(x=>x.channelId===ch.id);
+      if(!a){a={channelId:ch.id};S.accounts.push(a)}
+      Object.assign(a,{title:ch.snippet.title,thumb:ch.snippet.thumbnails?.default?.url,uploads:ch.contentDetails.relatedPlaylists.uploads,token,exp});
+    }
+    saveAccounts();toast('Chaîne connectée ✓');
+    await refreshAll();loadAnalytics();
+  }catch(e){toast(e.message)}
+}
+async function api(url,token){
+  const r=await fetch(url,{headers:{Authorization:'Bearer '+token}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){const e=new Error(j.error?.message||('Erreur '+r.status));e.status=r.status;throw e}
+  return j;
+}
+
+/* ---------- Live (Data API) ---------- */
+async function refreshAccount(a){
+  if(!valid(a))return;
+  const t=a.token;
+  const c=await api(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${a.channelId}`,t);
+  const s=c.items?.[0]?.statistics||{};
+  a.subs=+s.subscriberCount||0;a.views=+s.viewCount||0;a.videoCount=+s.videoCount||0;
+  const pl=await api(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId=${a.uploads}`,t);
+  const ids=(pl.items||[]).map(i=>i.contentDetails.videoId);
+  if(!ids.length)return;
+  const v=await api(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${ids.join(',')}`,t);
+  for(const it of v.items||[]){
+    S.videos[it.id]={id:it.id,channelId:a.channelId,title:it.snippet.title,published:it.snippet.publishedAt,
+      thumb:it.snippet.thumbnails?.medium?.url||it.snippet.thumbnails?.default?.url,dur:isoDur(it.contentDetails.duration),
+      views:+it.statistics.viewCount||0,likes:+it.statistics.likeCount||0,comments:+it.statistics.commentCount||0};
+  }
+}
+async function refreshAll(){
+  $('status').textContent='Actualisation…';
+  await Promise.all(S.accounts.map(a=>refreshAccount(a).catch(e=>{if(e.status===401)a.exp=0;console.warn(e)})));
+  const now=Date.now();
+  for(const v of Object.values(S.videos)){
+    const arr=S.snaps[v.id]||(S.snaps[v.id]=[]);
+    v.prev=arr.length?arr[arr.length-1]:null;
+    arr.push({t:now,v:v.views});
+    while(arr.length>400||(arr.length&&now-arr[0].t>72*3.6e6))arr.shift();
+  }
+  LS.set('ytd_snaps',S.snaps);saveAccounts();
+  S.lastRefresh=now;S.nextAt=now+REFRESH_MS;
+  render();
+}
+function perHour(v){
+  const arr=S.snaps[v.id]||[];if(arr.length<2)return null;
+  const now=Date.now(),target=now-3.6e6;
+  let ref=arr[0];for(const s of arr){if(s.t<=target)ref=s;else break}
+  const dt=(now-ref.t)/3.6e6;if(dt<0.15)return null;
+  return (v.views-ref.v)/dt;
+}
+
+/* ---------- Analytics (J-2) ---------- */
+const today=()=>new Date().toISOString().slice(0,10);
+async function loadAnalytics(){
+  for(const a of S.accounts){
+    if(!valid(a))continue;
+    const base=`https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=2005-01-01&endDate=${today()}&dimensions=video&sort=-views&maxResults=200`;
+    try{
+      const r=await api(base+'&metrics=views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,likes',a.token);
+      const h=(r.columnHeaders||[]).map(c=>c.name);
+      for(const row of r.rows||[]){const o={};h.forEach((k,i)=>o[k]=row[i]);S.analytics[o.video]=o}
+    }catch(e){console.warn('analytics',e)}
+    try{
+      const r=await api(base+'&metrics=views,engagedViews',a.token);
+      for(const row of r.rows||[])S.engaged[row[0]]={views:row[1],engaged:row[2]};
+    }catch(e){/* métrique non dispo */}
+  }
+  render();
+}
+async function loadRetention(id){
+  const v=S.videos[id];const a=S.accounts.find(x=>x.channelId===v.channelId);
+  if(!valid(a))return null;
+  try{
+    const r=await api(`https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=2005-01-01&endDate=${today()}&dimensions=elapsedVideoTimeRatio&metrics=audienceWatchRatio,relativeRetentionPerformance&filters=video==${id}`,a.token);
+    return (r.rows||[]).map(x=>({x:x[0],y:x[1],rel:x[2]}));
+  }catch(e){console.warn(e);return []}
+}
+function continued(id){const e=S.engaged[id];return e&&e.views?e.engaged/e.views*100:null}
+
+/* ---------- Script ---------- */
+function parseScript(txt,dur){
+  const out=[];
+  for(const raw of (txt||'').split('\n')){
+    const l=raw.trim();if(!l)continue;
+    const m=l.match(/^\[?(\d{1,2}):(\d{2})\]?\s*[-–:]?\s*(.*)$/);
+    if(m)out.push({t:+m[1]*60+ +m[2],text:m[3]});
+    else if(out.length&&out[out.length-1].t!=null)out[out.length-1].text+=' '+l;
+    else out.push({t:null,text:l});
+  }
+  if(out.some(o=>o.t==null)){
+    const words=o=>o.text.split(/\s+/).length,total=out.reduce((s,o)=>s+words(o),0)||1;let acc=0;
+    for(const o of out){if(o.t==null){o.t=Math.round(acc/total*(dur||60));o.est=true}acc+=words(o)}
+  }
+  return out.sort((a,b)=>a.t-b.t);
+}
+function retAt(ret,r){
+  if(!ret?.length)return null;
+  if(r<=ret[0].x)return ret[0].y;
+  for(let i=1;i<ret.length;i++)if(ret[i].x>=r){const a=ret[i-1],b=ret[i],k=(r-a.x)/(b.x-a.x||1);return a.y+(b.y-a.y)*k}
+  return ret[ret.length-1].y;
+}
+
+/* ---------- Rendu ---------- */
+function render(){
+  const n=S.accounts.length,ok=S.accounts.filter(valid).length;
+  $('status').textContent=n?`${ok}/${n} chaîne(s) connectée(s)`+(S.lastRefresh?` · actualisé à ${new Date(S.lastRefresh).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`:''):'Pas encore connecté';
+  $('channels').innerHTML=n?S.accounts.map(a=>`
+    <div class="chan">
+      ${a.thumb?`<img src="${esc(a.thumb)}" alt="">`:''}
+      <div style="flex:1">
+        <div style="font-weight:700">${esc(a.title)}</div>
+        ${valid(a)?`<div class="stats">
+          <div><span>Abonnés</span><b class="big">${fmt(a.subs)}</b></div>
+          <div><span>Vues totales</span><b class="big">${fmt(a.views)}</b></div>
+          <div><span>Vidéos</span><b class="big">${fmt(a.videoCount)}</b></div></div>`
+        :`<button class="btn warn" onclick="connect()" style="margin-top:6px">Session expirée · Reconnecter</button>`}
+      </div>
+    </div>`).join(''):'<div class="muted">Ajoute une chaîne pour commencer.</div>';
+
+  const vids=Object.values(S.videos).sort((a,b)=>new Date(b.published)-new Date(a.published));
+  $('videos').innerHTML=vids.length?vids.map(v=>{
+    const an=S.analytics[v.id],d=v.prev?v.views-v.prev.v:null,ph=perHour(v),c=continued(v.id);
+    const chan=S.accounts.find(a=>a.channelId===v.channelId);
+    return `<tr class="vid ${S.selected===v.id?'sel':''}" onclick="selectVideo('${v.id}')">
+      <td>${v.thumb?`<img class="thumb" src="${esc(v.thumb)}" alt="">`:''}</td>
+      <td><div class="title">${esc(v.title)}</div><div class="muted small">${esc(chan?.title||'')} · ${mmss(v.dur)}</div></td>
+      <td class="muted">il y a ${ago(v.published)}</td>
+      <td class="num"><b>${fmt(v.views)}</b></td>
+      <td class="num">${d==null?'—':d>0?`<span class="up">+${fmt(d)}</span>`:'0'}</td>
+      <td class="num">${ph==null?'<span class="muted small">en calcul</span>':fmt(ph)}</td>
+      <td class="num">${fmt(v.likes)}</td><td class="num">${fmt(v.comments)}</td>
+      <td class="num">${c==null?'—':c.toFixed(1)+' %'}</td>
+      <td class="num">${an?mmss(an.averageViewDuration):'—'}</td></tr>`}).join('')
+    :'<tr><td colspan="10" class="muted">—</td></tr>';
+
+  const hooks=vids.filter(v=>S.scripts[v.id]).map(v=>{
+    const first=parseScript(S.scripts[v.id],v.dur)[0];return {v,first:first?.text||'',c:continued(v.id),p:S.analytics[v.id]?.averageViewPercentage};
+  }).sort((a,b)=>(b.c??-1)-(a.c??-1));
+  $('hooks').innerHTML=hooks.length?hooks.map(h=>`<tr><td><div class="title" style="max-width:200px">${esc(h.v.title)}</div></td><td>${esc(h.first)}</td><td class="num">${h.c==null?'—':h.c.toFixed(1)+' %'}</td><td class="num">${h.p==null?'—':h.p.toFixed(0)+' %'}</td></tr>`).join('')
+    :'<tr><td colspan="4" class="muted">Colle le script d\'une vidéo (clique dessus) pour la voir apparaître ici.</td></tr>';
+  if(S.selected&&document.activeElement?.id!=='scriptBox')renderDetail();
+}
+
+async function selectVideo(id){
+  S.selected=id;render();
+  $('detail').scrollIntoView({behavior:'smooth',block:'start'});
+  if(!(id in S.ret)){S.ret[id]=await loadRetention(id);renderDetail()}
+}
+function renderDetail(){
+  const v=S.videos[S.selected];if(!v)return;
+  const an=S.analytics[v.id],c=continued(v.id),ret=S.ret[v.id],script=S.scripts[v.id]||'';
+  const segs=parseScript(script,v.dur);
+  // stats par segment
+  let worst=-1,worstDrop=0;
+  segs.forEach((s,i)=>{
+    const end=i<segs.length-1?segs[i+1].t:v.dur;
+    s.r0=retAt(ret,s.t/v.dur);s.r1=retAt(ret,end/v.dur);
+    s.drop=(s.r0!=null&&s.r1!=null&&s.r0>0)?(s.r0-s.r1)/s.r0*100:null;
+    if(i>0&&s.drop!=null&&s.drop>worstDrop){worstDrop=s.drop;worst=i}
+  });
+  const el=$('detail');el.classList.remove('hidden');
+  el.innerHTML=`
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0">${esc(v.title)}</h2>
+      <div class="row"><button class="btn" onclick="copyForClaude()">📋 Copier pour Claude</button><button class="btn" onclick="S.selected=null;document.getElementById('detail').classList.add('hidden');render()">Fermer</button></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><span>Vues (live)</span><b>${fmt(v.views)}</b></div>
+      <div class="kpi"><span>Ont continué (J-2)</span><b>${c==null?'—':c.toFixed(1)+' %'}</b></div>
+      <div class="kpi"><span>Durée moyenne (J-2)</span><b>${an?mmss(an.averageViewDuration):'—'} <small class="muted">/ ${mmss(v.dur)}</small></b></div>
+      <div class="kpi"><span>% moyen regardé (J-2)</span><b>${an?an.averageViewPercentage.toFixed(0)+' %':'—'}</b></div>
+      <div class="kpi"><span>Abonnés gagnés (J-2)</span><b>${an?fmt(an.subscribersGained):'—'}</b></div>
+    </div>
+    <h2>Courbe de rétention + script <span class="tag j2">J-2</span></h2>
+    ${ret==null?'<p class="muted">Chargement…</p>':ret.length?chartSVG(ret,segs,v.dur,worst):'<p class="muted">Pas encore de données de rétention (YouTube met 1 à 2 jours).</p>'}
+    ${segs.length?`<div style="margin:12px 0">${segs.map((s,i)=>`
+      <div class="seg ${i===worst?'worst':''}"><div class="n">${i+1}</div><div class="muted">${mmss(s.t)}${s.est?'~':''}</div><div>${esc(s.text)}</div>
+      <div class="drop">${s.drop==null?'':(s.drop>0?'−':'+')+Math.abs(s.drop).toFixed(0)+' %'}</div></div>`).join('')}
+      <p class="muted small">Colonne de droite : spectateurs perdus pendant cette phrase. En rouge, la plus grosse chute après l'accroche.</p></div>`:''}
+    <h2>Script de la vidéo</h2>
+    <p class="muted small">Une phrase par ligne, avec le minutage si possible : <code>0:00 She slept for 200 days…</code>. Sans minutage, je répartis selon la longueur des phrases.</p>
+    <textarea id="scriptBox" placeholder="0:00 Première phrase&#10;0:04 Deuxième phrase…">${esc(script)}</textarea>
+    <div class="row" style="margin-top:8px"><button class="btn primary" onclick="saveScript()">Enregistrer le script</button></div>`;
+}
+function chartSVG(ret,segs,dur,worst){
+  const W=760,H=240,P={l:40,r:10,t:10,b:28};
+  const maxY=Math.max(1,...ret.map(r=>r.y))*1.05;
+  const X=r=>P.l+r*(W-P.l-P.r),Y=y=>P.t+(1-y/maxY)*(H-P.t-P.b);
+  const path=ret.map((r,i)=>(i?'L':'M')+X(r.x).toFixed(1)+','+Y(r.y).toFixed(1)).join(' ');
+  const area=path+` L${X(ret[ret.length-1].x)},${Y(0)} L${X(ret[0].x)},${Y(0)} Z`;
+  let grid='';for(const g of [0,.25,.5,.75,1]){if(g>maxY)continue;grid+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="#2e2e35"/><text x="${P.l-6}" y="${Y(g)+4}" fill="#9a9aa5" font-size="10" text-anchor="end">${Math.round(g*100)}%</text>`}
+  let ticks='';for(let i=0;i<=4;i++){const x=X(i/4);ticks+=`<text x="${x}" y="${H-8}" fill="#9a9aa5" font-size="10" text-anchor="middle">${mmss(dur*i/4)}</text>`}
+  const marks=segs.map((s,i)=>{const x=X(Math.min(1,s.t/dur));const col=i===worst?'#ff5c6c':'#e05ba0';
+    return `<line x1="${x}" x2="${x}" y1="${P.t}" y2="${Y(0)}" stroke="${col}" stroke-dasharray="3 3" opacity=".6"/><circle cx="${x}" cy="${P.t+8}" r="8" fill="${col}"/><text x="${x}" y="${P.t+11}" fill="#000" font-size="9" font-weight="700" text-anchor="middle">${i+1}</text>`}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}">${grid}<path d="${area}" fill="rgba(62,166,255,.12)"/><path d="${path}" fill="none" stroke="#3ea6ff" stroke-width="2"/>${marks}${ticks}</svg>
+  <p class="muted small">100 % = tous les spectateurs encore là. Au-dessus de 100 % = des gens revoient ce passage (boucle).</p>`;
+}
+function saveScript(){
+  S.scripts[S.selected]=$('scriptBox').value;LS.set('ytd_scripts',S.scripts);toast('Script enregistré ✓');render();
+}
+function copyForClaude(){
+  const v=S.videos[S.selected],an=S.analytics[v.id],c=continued(v.id),ret=S.ret[v.id]||[];
+  const segs=parseScript(S.scripts[v.id]||'',v.dur);
+  let t=`Vidéo : ${v.title}\nDurée : ${mmss(v.dur)} · publiée il y a ${ago(v.published)}\nVues : ${v.views} · J'aime : ${v.likes} · Commentaires : ${v.comments}\n`;
+  if(an)t+=`Durée moyenne : ${mmss(an.averageViewDuration)} · % moyen vu : ${an.averageViewPercentage.toFixed(0)} % · Abonnés gagnés : ${an.subscribersGained}\n`;
+  if(c!=null)t+=`Ont continué à regarder : ${c.toFixed(1)} %\n`;
+  if(ret.length)t+=`\nRétention (temps → % restant) :\n`+ret.filter((_,i)=>i%5===0).map(r=>`${mmss(r.x*v.dur)} → ${(r.y*100).toFixed(0)} %`).join('\n')+'\n';
+  if(segs.length)t+=`\nScript :\n`+segs.map(s=>`${mmss(s.t)} ${s.text}`+(s.drop!=null?` [${s.drop>0?'−':'+'}${Math.abs(s.drop).toFixed(0)} %]`:'')).join('\n');
+  navigator.clipboard.writeText(t).then(()=>toast('Copié ✓ colle-le à Claude'),()=>toast('Copie impossible'));
+}
+
+/* ---------- Init ---------- */
+$('origin').textContent=location.origin;
+$('clientId').value=S.clientId;
+$('btnSettings').onclick=()=>$('setup').classList.toggle('hidden');
+$('btnSaveClient').onclick=()=>{S.clientId=$('clientId').value.trim();LS.set('ytd_client',S.clientId);tokenClient=null;initGis();toast('ID client enregistré ✓');$('setup').classList.add('hidden')};
+$('btnAdd').onclick=connect;
+$('btnRefresh').onclick=async()=>{await refreshAll();loadAnalytics()};
+if(!S.clientId)$('setup').classList.remove('hidden');
+window.addEventListener('load',()=>{initGis();if(S.accounts.some(valid)){refreshAll().then(loadAnalytics)}else render()});
+setInterval(()=>{if(S.nextAt&&Date.now()>=S.nextAt&&S.accounts.some(valid))refreshAll()},15000);
+setInterval(()=>{const el=$('nextRefresh');if(!S.nextAt||!S.accounts.some(valid)){el.textContent='';return}const s=Math.max(0,Math.round((S.nextAt-Date.now())/1000));el.textContent=`Prochaine actualisation dans ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;render.tick=(render.tick||0)+1;if(render.tick%20===0)render()},1000);
+</script>
+</body>
+</html>
